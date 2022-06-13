@@ -86,7 +86,7 @@ namespace TypeGen.Core.Generator.Services
         {
             Requires.NotNull(type, nameof(type));
             if (string.IsNullOrWhiteSpace(type.FullName)) return null;
-            
+
             if (TryGetCustomTypeMapping(type, out string customType))
             {
                 return new[] { "Object", "boolean", "string", "number", "Date" }.Contains(customType) ? customType : null;
@@ -121,7 +121,7 @@ namespace TypeGen.Core.Generator.Services
                     return null;
             }
         }
-        
+
         /// <inheritdoc />
         public bool IsTsClass(Type type)
         {
@@ -165,7 +165,7 @@ namespace TypeGen.Core.Generator.Services
         public bool IsCollectionType(Type type)
         {
             Requires.NotNull(type, nameof(type));
-            
+
             return type.FullName != "System.String" // not a string
                 && !IsDictionaryType(type) // not a dictionary
                 && (type.GetInterface("IEnumerable") != null || (type.FullName != null && type.FullName.StartsWith("System.Collections.IEnumerable"))); // implements IEnumerable or is IEnumerable
@@ -175,7 +175,7 @@ namespace TypeGen.Core.Generator.Services
         public bool IsDictionaryType(Type type)
         {
             Requires.NotNull(type, nameof(type));
-            
+
             return type.GetInterface("System.Collections.Generic.IDictionary`2") != null
                    || (type.FullName != null && type.FullName.StartsWith("System.Collections.Generic.IDictionary`2"))
                    || type.GetInterface("System.Collections.IDictionary") != null
@@ -249,7 +249,7 @@ namespace TypeGen.Core.Generator.Services
         {
             Requires.NotNull(memberInfo, nameof(memberInfo));
             Requires.NotNull(GeneratorOptions.TypeNameConverters, nameof(GeneratorOptions.TypeNameConverters));
-            
+
             var typeAttribute = MetadataReader.GetAttribute<TsTypeAttribute>(memberInfo);
             if (typeAttribute != null)
             {
@@ -274,7 +274,7 @@ namespace TypeGen.Core.Generator.Services
         private string GetTsTypeNameForMember(MemberInfo memberInfo)
         {
             // special case - dynamic property/field
-            
+
             if (memberInfo.GetCustomAttribute<DynamicAttribute>() != null)
             {
                 return "any";
@@ -286,15 +286,17 @@ namespace TypeGen.Core.Generator.Services
             return GetTsTypeName(type);
         }
 
+        private NullabilityInfoContext _nullabilityContext = new NullabilityInfoContext();
+
         public IEnumerable<string> GetTypeUnions(MemberInfo memberInfo)
         {
             const string nullLiteral = "null";
             const string undefinedLiteral = "undefined";
-            
+
             Type memberType = memberInfo is PropertyInfo info
                 ? info.PropertyType
                 : ((FieldInfo)memberInfo).FieldType;
-            
+
             var result = new List<string>();
 
             var tsTypeUnionsAttribute = MetadataReader.GetAttribute<TsTypeUnionsAttribute>(memberInfo);
@@ -302,20 +304,30 @@ namespace TypeGen.Core.Generator.Services
             if (tsTypeUnionsAttribute != null)
             {
                 // add from TsTypeUnionsAttribute
-            
+
                 result.AddRange(tsTypeUnionsAttribute.TypeUnions);
             }
             else
             {
                 // add from both typeUnionsForTypes and csNullableTranslation
-                
+
                 string tsTypeName = GetTsTypeName(memberInfo);
                 if (GeneratorOptions.TypeUnionsForTypes.ContainsKey(tsTypeName))
                 {
                     result.AddRange(GeneratorOptions.TypeUnionsForTypes[tsTypeName]);
                 }
 
-                if ((Nullable.GetUnderlyingType(memberType) != null && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None) ||
+                var memberNullability = memberInfo switch {
+                    PropertyInfo pInfo => _nullabilityContext.Create(pInfo),
+                    FieldInfo fInfo => _nullabilityContext.Create(fInfo),
+                    EventInfo eInfo => _nullabilityContext.Create(eInfo),
+                    _ => null
+                };
+
+                var nullable = memberNullability != null ? new[] { memberNullability.ReadState, memberNullability.WriteState }.Any(i => new[] { NullabilityState.Nullable, NullabilityState.Unknown }.Contains(i))
+                    : Nullable.GetUnderlyingType(memberType) != null;
+
+                if ((nullable && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None) ||
                     GeneratorOptions.CsAllowNullsForAllTypes)
                 {
                     if (GeneratorOptions.CsNullableTranslation.HasFlag(StrictNullTypeUnionFlags.Null)) result.Add(nullLiteral);
@@ -324,7 +336,7 @@ namespace TypeGen.Core.Generator.Services
 
                 result = result.Distinct().ToList();
             }
-            
+
             // Ts[Null|NotNull|Undefined|NotUndefined]Attribute has the highest priority
 
             if (MetadataReader.GetAttribute<TsNullAttribute>(memberInfo) != null) result.Add(nullLiteral);
@@ -344,7 +356,7 @@ namespace TypeGen.Core.Generator.Services
         private string GetTsDictionaryTypeName(Type type)
         {
             // handle IDictionary<,>
-            
+
             Type dictionary2Interface = type.GetInterface("System.Collections.Generic.IDictionary`2");
             if (dictionary2Interface != null || (type.FullName != null && type.FullName.StartsWith("System.Collections.Generic.IDictionary`2")))
             {
@@ -363,7 +375,7 @@ namespace TypeGen.Core.Generator.Services
 
                 return GetTsDictionaryTypeText(keyTypeName, valueTypeName);
             }
-            
+
             // handle IDictionary
 
             if (type.GetInterface("System.Collections.IDictionary") != null ||
@@ -495,7 +507,7 @@ namespace TypeGen.Core.Generator.Services
 
             Type ienumerable1Interface = type.GetInterface("IEnumerable`1");
             if (ienumerable1Interface != null) return ienumerable1Interface.GetGenericArguments()[0];
-            
+
             Type ienumerableInterface = type.GetInterface("IEnumerable");
             if (ienumerableInterface != null) return typeof(object);
 
@@ -506,7 +518,7 @@ namespace TypeGen.Core.Generator.Services
         public Type GetFlatType(Type type)
         {
             Requires.NotNull(type, nameof(type));
-            
+
             while (true)
             {
                 if (!IsCollectionType(type)) return type;
@@ -518,7 +530,7 @@ namespace TypeGen.Core.Generator.Services
         public Type StripNullable(Type type)
         {
             Requires.NotNull(type, nameof(type));
-            
+
             Type nullableUnderlyingType = Nullable.GetUnderlyingType(type);
             return nullableUnderlyingType ?? type;
         }
