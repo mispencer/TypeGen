@@ -34,7 +34,7 @@ namespace TypeGen.Cli
 
             bool verbose = _consoleArgsReader.ContainsVerboseOption(args);
             _logger = new ConsoleLogger(verbose);
-            
+
             _fileSystem = new FileSystem();
             _configProvider = new ConfigProvider(_fileSystem, _logger);
             _generatorOptionsProvider = new GeneratorOptionsProvider(_fileSystem, _logger);
@@ -47,7 +47,7 @@ namespace TypeGen.Cli
             try
             {
                 InitializeServices(args);
-                
+
                 if (args == null || args.Length == 0 || _consoleArgsReader.ContainsHelpOption(args) || _consoleArgsReader.ContainsAnyCommand(args) == false)
                 {
                     ShowHelp();
@@ -60,7 +60,7 @@ namespace TypeGen.Cli
                     Console.WriteLine($"Current working directory is: {cwd}");
                     return;
                 }
-                
+
                 string[] configPaths = _consoleArgsReader.GetConfigPaths(args).ToArray();
 
                 string[] projectFolders = _consoleArgsReader.ContainsProjectFolderOption(args) ?
@@ -79,7 +79,7 @@ namespace TypeGen.Cli
             }
             catch (Exception e) when (e is CliException || e is CoreException)
             {
-                _logger.Log($"APPLICATION ERROR: {e.Message}{Environment.NewLine}{e.StackTrace}", LogLevel.Error);
+                _logger.Log($"APPLICATION ERROR: {e.Message}{Environment.NewLine}{e.StackTrace}{e.InnerException}", LogLevel.Error);
             }
             catch (AssemblyResolutionException e)
             {
@@ -125,12 +125,12 @@ namespace TypeGen.Cli
             var generator = new Generator(generatorOptions, _logger);
 
             // generate
-            
+
             if (config.ClearOutputDirectory == true) _fileSystem.ClearDirectory(generatorOptions.BaseOutputDirectory);
             if (config.BuildProject == true) _projectBuilder.Build(projectFolder);
-            
+
             _logger.Log($"Generating files for project \"{projectFolder}\"...", LogLevel.Info);
-            
+
             var generatedFiles = new List<string>();
 
             if (!config.GenerationSpecs.Any() || config.GenerateFromAssemblies == true)
@@ -141,13 +141,13 @@ namespace TypeGen.Cli
             if (config.GenerationSpecs.Any())
             {
                 var typeResolver = new TypeResolver(_logger, _fileSystem, projectFolder, assemblies);
-                
+
                 IEnumerable<GenerationSpec> generationSpecs = config.GenerationSpecs
                     .Select(name => typeResolver.Resolve(name, "GenerationSpec"))
                     .Where(t => t != null)
                     .Select(t => (GenerationSpec)Activator.CreateInstance(t))
                     .ToArray();
-                    
+
                 generatedFiles.AddRange(generator.Generate(generationSpecs));
             }
 
@@ -155,7 +155,7 @@ namespace TypeGen.Cli
             {
                 _logger.Log($"Generated {file}", LogLevel.Info);
             }
-            
+
             if (config.AddFilesToProject ?? TgConfig.DefaultAddFilesToProject)
             {
                 AddFilesToProject(projectFolder, generatedFiles);
@@ -164,7 +164,7 @@ namespace TypeGen.Cli
             // unregister assembly resolver
 
             _assemblyResolver.Unregister();
-            
+
             _logger.Log($"Files for project \"{projectFolder}\" generated successfully.{Environment.NewLine}", LogLevel.Info);
         }
 
