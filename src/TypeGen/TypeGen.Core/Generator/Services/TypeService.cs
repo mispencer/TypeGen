@@ -329,7 +329,7 @@ namespace TypeGen.Core.Generator.Services
                 var nullable = memberNullability != null ? new[] { memberNullability.ReadState, memberNullability.WriteState }.Any(i => new[] { NullabilityState.Nullable, NullabilityState.Unknown }.Contains(i))
                     : Nullable.GetUnderlyingType(memberType) != null;
 
-                if ((nullable && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None) ||
+                if ((nullable && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.None && GeneratorOptions.CsNullableTranslation != StrictNullTypeUnionFlags.Optional) ||
                     GeneratorOptions.CsAllowNullsForAllTypes)
                 {
                     if (GeneratorOptions.CsNullableTranslation.HasFlag(StrictNullTypeUnionFlags.Null)) result.Add(nullLiteral);
