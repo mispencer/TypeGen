@@ -15,18 +15,18 @@ namespace TypeGen.IntegrationTest
         public void Cli_should_finish_with_success()
         {
             // arrange
-            
+
             const string projectToGeneratePath = "../../../../TypeGen.TestWebApp";
             const string cliFileName = "TypeGen.Cli.exe";
             string[] cliPossibleDirectories = {
-                "../../../../TypeGen.Cli/bin/Debug/net6.0",            
-                "../../../../TypeGen.Cli/bin/Release/net6.0",            
+                "../../../../TypeGen.Cli/bin/Debug/net7.0",
+                "../../../../TypeGen.Cli/bin/Release/net7.0",
             };
-            
+
             var cliFilePath = GetCliDirectory(cliPossibleDirectories);
             cliFilePath = Path.Combine(cliFilePath, cliFileName);
-            
-            var process = new Process 
+
+            var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -37,11 +37,11 @@ namespace TypeGen.IntegrationTest
                     CreateNoWindow = true
                 }
             };
-            
+
             // act
-            
+
             process.Start();
-            
+
             // assert
 
             var outputBuilder = new StringBuilder();
