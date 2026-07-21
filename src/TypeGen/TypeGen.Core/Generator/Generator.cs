@@ -746,7 +746,12 @@ namespace TypeGen.Core.Generator
                 return asUnionType ? _templateService.FillEnumUnionTypeValueTemplate(name) : _templateService.FillEnumValueTemplate(name, enumValueString, tsDoc);
             }
 
-            object enumValue = fieldInfo.GetValue(null);
+            // Use GetRawConstantValue() rather than GetValue(null): enum members are compile-time
+            // literals, so this reads the value directly from metadata. GetValue(null) instead goes
+            // through Enum.InternalBoxEnum/RuntimeType.BoxCache, which throws ArgumentException on
+            // .NET 10 for enums nested inside an open (unbound) generic type, e.g. an enum nested in
+            // SomeGeneric<T>, reflected via the generic type definition rather than a closed instantiation.
+            object enumValue = fieldInfo.GetRawConstantValue();
             object enumValueAsUnderlyingType = Convert.ChangeType(enumValue, Enum.GetUnderlyingType(type));
             return asUnionType ? _templateService.FillEnumUnionTypeValueTemplate(name) : _templateService.FillEnumValueTemplate(name, enumValueAsUnderlyingType, tsDoc);
         }
